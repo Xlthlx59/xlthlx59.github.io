@@ -44,6 +44,12 @@ img {
 
 .brand {
   display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-text {
+  display: flex;
   flex-direction: column;
   gap: 4px;
 }
@@ -60,6 +66,7 @@ img {
   text-transform: uppercase;
   color: var(--muted);
 }
+
 
 .site-nav {
   display: flex;
@@ -159,6 +166,14 @@ figcaption {
   margin: 64px 0 24px;
 }
 
+.blog-page main {
+  padding-top: 24px;
+}
+
+.blog-page .section-heading {
+  margin-top: 32px;
+}
+
 .section-heading h2 {
   font-family: "Cormorant Garamond", serif;
   font-size: clamp(24px, 3vw, 34px);
@@ -248,6 +263,101 @@ figcaption {
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.blog-card {
+  text-decoration: none;
+  color: var(--ink);
+  display: grid;
+  gap: 14px;
+}
+
+.blog-card-media {
+  position: relative;
+  overflow: hidden;
+  background: var(--soft);
+}
+
+.blog-card-media img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.blog-card:hover .blog-card-media img,
+.blog-card:focus .blog-card-media img {
+  transform: scale(1.03);
+}
+
+.blog-card-title {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.blog-card-date {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.post {
+  max-width: 860px;
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.post-header {
+  display: grid;
+  gap: 12px;
+}
+
+.post-date {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.post-title {
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.post-subtitle {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.post-hero img {
+  width: 100%;
+  height: auto;
+}
+
+.post-content {
+  display: grid;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.post-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .btn {
@@ -365,6 +475,10 @@ figcaption {
   .gallery {
     column-count: 2;
   }
+
+  .blog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -380,6 +494,14 @@ figcaption {
 
   .gallery {
     column-count: 1;
+  }
+
+  .blog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-card-media img {
+    height: 200px;
   }
 
   .lightbox-nav {

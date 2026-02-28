@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ruowen Chen | Blog</title>
     <meta name="description" content="Field notes and visual stories by Ruowen Chen." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon.png" type="image/png" sizes="32x32" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,12 +15,14 @@
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="blog-page">
     <div class="page">
       <header class="site-header">
         <div class="brand">
-          <span class="brand-name">RUOWEN CHEN</span>
-          <span class="brand-sub">Photography</span>
+          <div class="brand-text">
+            <span class="brand-name">RUOWEN CHEN</span>
+            <span class="brand-sub">Photography</span>
+          </div>
         </div>
         <nav class="site-nav">
           <a href="index.html#portfolio">Portfolio</a>
@@ -33,19 +37,21 @@
             <p class="intro-eyebrow">Blog</p>
             <h2 id="blog-title">Notes from the road</h2>
           </div>
-          <div class="blog-list">
-            <article class="blog-item">
-              <h3>Coastal light, Xiamen</h3>
-              <span class="blog-date">2024.05</span>
-            </article>
-            <article class="blog-item">
-              <h3>Night textures in Chengdu</h3>
-              <span class="blog-date">2024.04</span>
-            </article>
-            <article class="blog-item">
-              <h3>Walking the river in Shanghai</h3>
-              <span class="blog-date">2024.03</span>
-            </article>
+          <div class="blog-grid">
+            <a class="blog-card" href="post-2021.html">
+              <div class="blog-card-media">
+                <img
+                  src="photos/IMG_2644.jpg"
+                  alt="Muted light over Russell Square in London"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+              <div>
+                <h3 class="blog-card-title">Photography as Writing: My Favorite Shot of 2021</h3>
+                <span class="blog-card-date">12 / 2021</span>
+              </div>
+            </a>
           </div>
         </section>
       </main>
