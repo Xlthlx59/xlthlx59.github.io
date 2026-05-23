@@ -5,24 +5,89 @@ const closeBtn = lightbox.querySelector('.lightbox-close');
 const prevBtn = lightbox.querySelector('.lightbox-nav.prev');
 const nextBtn = lightbox.querySelector('.lightbox-nav.next');
 
+const preloadCount = 6;
+const preloadMargin = '600px';
+
 const shuffle = (array) => {
-  for (let i = array.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+  for (let index = array.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [array[index], array[randomIndex]] = [array[randomIndex], array[index]];
   }
   return array;
+};
+
+const loadImage = (img) => {
+  const source = img.dataset.src;
+  if (!source || img.dataset.loaded === 'true') {
+    return;
+  }
+
+  img.src = source;
+  img.dataset.loaded = 'true';
 };
 
 let shots = Array.from(gallery.querySelectorAll('.shot'));
 shots = shuffle(shots);
 shots.forEach((shot) => gallery.appendChild(shot));
 
+shots.forEach((shot, index) => {
+  const trigger = shot.querySelector('.shot-trigger');
+  const img = shot.querySelector('img');
+
+  trigger.addEventListener('click', () => openLightbox(index));
+
+  if (index < preloadCount) {
+    img.fetchPriority = 'high';
+    loadImage(img);
+  } else {
+    img.fetchPriority = 'low';
+    img.decoding = 'async';
+  }
+});
+
+window.addEventListener('load', () => {
+  shots.slice(0, preloadCount).forEach((shot) => {
+    const img = shot.querySelector('img');
+    loadImage(img);
+  });
+});
+
+if ('IntersectionObserver' in window) {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) {
+          continue;
+        }
+
+        loadImage(entry.target);
+        observer.unobserve(entry.target);
+      }
+    },
+    {
+      rootMargin: preloadMargin,
+    },
+  );
+
+  shots.slice(preloadCount).forEach((shot) => {
+    const img = shot.querySelector('img');
+    observer.observe(img);
+  });
+} else {
+  shots.slice(preloadCount).forEach((shot) => {
+    const img = shot.querySelector('img');
+    loadImage(img);
+  });
+}
+
 let currentIndex = 0;
 
 const updateLightbox = (index) => {
   const shot = shots[index];
   const img = shot.querySelector('img');
-  lightboxImg.src = img.src;
+  const source = img.dataset.src || img.src;
+
+  lightboxImg.src = source;
   lightboxImg.alt = img.alt || '';
 
   currentIndex = index;
@@ -50,11 +115,6 @@ const showPrev = () => {
   const prevIndex = (currentIndex - 1 + shots.length) % shots.length;
   updateLightbox(prevIndex);
 };
-
-shots.forEach((shot, index) => {
-  const trigger = shot.querySelector('.shot-trigger');
-  trigger.addEventListener('click', () => openLightbox(index));
-});
 
 closeBtn.addEventListener('click', closeLightbox);
 nextBtn.addEventListener('click', showNext);

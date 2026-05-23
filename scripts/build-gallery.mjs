@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +26,7 @@ if (!Array.isArray(manifest) || manifest.length === 0) {
 
 const figureIndent = '          ';
 const innerIndent = '            ';
+const placeholderSrc = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
 const getWebSrc = (src) => {
   const absoluteSourcePath = path.join(rootDir, src);
@@ -44,6 +46,30 @@ const getWebSrc = (src) => {
   return webSrc;
 };
 
+const getImageDimensions = (imagePath) => {
+  const result = spawnSync(
+    'sips',
+    ['-g', 'pixelWidth', '-g', 'pixelHeight', imagePath],
+    { encoding: 'utf8' },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || `Failed to read dimensions for ${imagePath}`);
+  }
+
+  const widthMatch = result.stdout.match(/pixelWidth:\s+(\d+)/);
+  const heightMatch = result.stdout.match(/pixelHeight:\s+(\d+)/);
+
+  if (!widthMatch || !heightMatch) {
+    throw new Error(`Could not parse image dimensions for ${imagePath}`);
+  }
+
+  return {
+    width: Number(widthMatch[1]),
+    height: Number(heightMatch[1]),
+  };
+};
+
 const figures = manifest
   .map((entry, index) => {
     const photo = typeof entry === 'string' ? { src: entry, alt: '' } : entry;
@@ -60,11 +86,12 @@ const figures = manifest
     }
 
     const webSrc = getWebSrc(src);
+    const { width, height } = getImageDimensions(webSrc);
 
     return [
       `${figureIndent}<figure class="shot">`,
       `${innerIndent}<button class="shot-trigger" aria-label="Open photo">`,
-      `${innerIndent}  <img src="${escapeHtml(webSrc)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`,
+      `${innerIndent}  <img src="${placeholderSrc}" data-src="${escapeHtml(webSrc)}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" decoding="async" />`,
       `${innerIndent}</button>`,
       `${figureIndent}</figure>`,
     ].join('\n');
