@@ -9,6 +9,7 @@ const manifestPath = path.join(rootDir, 'photos.json');
 const indexPath = path.join(rootDir, 'index.html');
 const sourceDir = path.join(rootDir, 'photos');
 const webDir = path.join(rootDir, 'photos-web');
+const thumbnailDir = path.join(rootDir, 'photos-thumbs');
 const galleryPattern = /<!-- gallery:start -->[\s\S]*?<!-- gallery:end -->/;
 
 const escapeHtml = (value) =>
@@ -28,7 +29,7 @@ const figureIndent = '          ';
 const innerIndent = '            ';
 const placeholderSrc = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
-const getWebSrc = (src) => {
+const getRelativePhotoPath = (src) => {
   const absoluteSourcePath = path.join(rootDir, src);
   const relativePhotoPath = path.relative(sourceDir, absoluteSourcePath);
 
@@ -36,14 +37,21 @@ const getWebSrc = (src) => {
     throw new Error(`Photo must live inside photos/: ${src}`);
   }
 
-  const webSrc = path.posix.join('photos-web', relativePhotoPath.split(path.sep).join('/'));
-  const webPath = path.join(webDir, relativePhotoPath);
+  return relativePhotoPath;
+};
 
-  if (!existsSync(webPath)) {
-    throw new Error(`Optimized photo not found: ${webSrc}. Run node scripts/build-site.mjs.`);
+const getGeneratedSrc = (relativePhotoPath, publicDir, generatedDir, label) => {
+  const generatedSrc = path.posix.join(publicDir, relativePhotoPath.split(path.sep).join('/'));
+  const generatedPath = path.join(generatedDir, relativePhotoPath);
+
+  if (!existsSync(generatedPath)) {
+    throw new Error(`${label} photo not found: ${generatedSrc}. Run node scripts/build-site.mjs.`);
   }
 
-  return webSrc;
+  return {
+    generatedSrc,
+    generatedPath,
+  };
 };
 
 const getImageDimensions = (imagePath) => {
@@ -85,13 +93,25 @@ const figures = manifest
       throw new Error(`Photo not found: ${src}`);
     }
 
-    const webSrc = getWebSrc(src);
-    const { width, height } = getImageDimensions(webSrc);
+    const relativePhotoPath = getRelativePhotoPath(src);
+    const { generatedSrc: fullSrc } = getGeneratedSrc(
+      relativePhotoPath,
+      'photos-web',
+      webDir,
+      'Optimized',
+    );
+    const { generatedSrc: thumbnailSrc, generatedPath: thumbnailPath } = getGeneratedSrc(
+      relativePhotoPath,
+      'photos-thumbs',
+      thumbnailDir,
+      'Thumbnail',
+    );
+    const { width, height } = getImageDimensions(thumbnailPath);
 
     return [
       `${figureIndent}<figure class="shot" style="--shot-ratio: ${width} / ${height}">`,
       `${innerIndent}<button class="shot-trigger" aria-label="Open photo">`,
-      `${innerIndent}  <img src="${placeholderSrc}" data-src="${escapeHtml(webSrc)}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" decoding="async" />`,
+      `${innerIndent}  <img src="${placeholderSrc}" data-src="${escapeHtml(thumbnailSrc)}" data-full-src="${escapeHtml(fullSrc)}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" decoding="async" />`,
       `${innerIndent}</button>`,
       `${figureIndent}</figure>`,
     ].join('\n');

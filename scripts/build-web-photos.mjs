@@ -5,12 +5,26 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const scriptPath = fileURLToPath(import.meta.url);
+const rootDir = path.resolve(path.dirname(scriptPath), '..');
 const manifestPath = path.join(rootDir, 'photos.json');
 const sourceDir = path.join(rootDir, 'photos');
 const outputDir = path.join(rootDir, 'photos-web');
-const maxDimension = 2000;
-const jpegQuality = 82;
+const thumbnailDir = path.join(rootDir, 'photos-thumbs');
+const outputs = [
+  {
+    label: 'full',
+    dir: outputDir,
+    maxDimension: 2000,
+    jpegQuality: 82,
+  },
+  {
+    label: 'thumbnail',
+    dir: thumbnailDir,
+    maxDimension: 700,
+    jpegQuality: 62,
+  },
+];
 
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
@@ -18,7 +32,7 @@ if (!Array.isArray(manifest) || manifest.length === 0) {
   throw new Error('photos.json must contain at least one photo.');
 }
 
-await mkdir(outputDir, { recursive: true });
+await Promise.all(outputs.map((output) => mkdir(output.dir, { recursive: true })));
 
 const getPhotoSrc = (entry, index) => {
   const photo = typeof entry === 'string' ? { src: entry } : entry;
@@ -31,7 +45,7 @@ const getPhotoSrc = (entry, index) => {
   return src;
 };
 
-const toWebPath = (src) => {
+const toOutputPaths = (src) => {
   const absoluteSourcePath = path.join(rootDir, src);
   const relativePhotoPath = path.relative(sourceDir, absoluteSourcePath);
 
@@ -41,54 +55,64 @@ const toWebPath = (src) => {
 
   return {
     sourcePath: absoluteSourcePath,
-    outputPath: path.join(outputDir, relativePhotoPath),
+    outputPaths: outputs.map((output) => ({
+      ...output,
+      outputPath: path.join(output.dir, relativePhotoPath),
+    })),
   };
 };
 
-let generated = 0;
-let skipped = 0;
+const counts = new Map(outputs.map((output) => [output.label, { generated: 0, skipped: 0 }]));
+const scriptMtimeMs = statSync(scriptPath).mtimeMs;
 
 for (const [index, entry] of manifest.entries()) {
   const src = getPhotoSrc(entry, index);
-  const { sourcePath, outputPath } = toWebPath(src);
+  const { sourcePath, outputPaths } = toOutputPaths(src);
 
   if (!existsSync(sourcePath)) {
     throw new Error(`Photo not found: ${src}`);
   }
 
-  const outputIsCurrent =
-    existsSync(outputPath) && statSync(outputPath).mtimeMs >= statSync(sourcePath).mtimeMs;
+  const inputMtimeMs = Math.max(statSync(sourcePath).mtimeMs, scriptMtimeMs);
 
-  if (outputIsCurrent) {
-    skipped += 1;
-    continue;
+  for (const { label, outputPath, maxDimension, jpegQuality } of outputPaths) {
+    const count = counts.get(label);
+    const outputIsCurrent =
+      existsSync(outputPath) && statSync(outputPath).mtimeMs >= inputMtimeMs;
+
+    if (outputIsCurrent) {
+      count.skipped += 1;
+      continue;
+    }
+
+    await mkdir(path.dirname(outputPath), { recursive: true });
+
+    const result = spawnSync(
+      'sips',
+      [
+        '-s',
+        'format',
+        'jpeg',
+        '-s',
+        'formatOptions',
+        String(jpegQuality),
+        '-Z',
+        String(maxDimension),
+        sourcePath,
+        '--out',
+        outputPath,
+      ],
+      { encoding: 'utf8' },
+    );
+
+    if (result.status !== 0) {
+      throw new Error(result.stderr || result.stdout || `Failed to optimize ${src}`);
+    }
+
+    count.generated += 1;
   }
-
-  await mkdir(path.dirname(outputPath), { recursive: true });
-
-  const result = spawnSync(
-    'sips',
-    [
-      '-s',
-      'format',
-      'jpeg',
-      '-s',
-      'formatOptions',
-      String(jpegQuality),
-      '-Z',
-      String(maxDimension),
-      sourcePath,
-      '--out',
-      outputPath,
-    ],
-    { encoding: 'utf8' },
-  );
-
-  if (result.status !== 0) {
-    throw new Error(result.stderr || result.stdout || `Failed to optimize ${src}`);
-  }
-
-  generated += 1;
 }
 
-console.log(`Web photos ready: ${generated} generated, ${skipped} skipped.`);
+for (const [label, { generated, skipped }] of counts) {
+  console.log(`${label} photos ready: ${generated} generated, ${skipped} skipped.`);
+}

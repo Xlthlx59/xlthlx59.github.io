@@ -6,7 +6,9 @@ const prevBtn = lightbox.querySelector('.lightbox-nav.prev');
 const nextBtn = lightbox.querySelector('.lightbox-nav.next');
 
 const initialLoadCount = 12;
+const initialPriorityCount = 3;
 const loadBatchCount = 12;
+const backgroundLoadBatchCount = 6;
 const preloadMargin = '600px';
 
 const shuffle = (array) => {
@@ -34,6 +36,33 @@ const loadImage = (img) => {
 const loadShot = (shot) => {
   loadImage(shot.querySelector('img'));
 };
+
+const waitForImages = (images, timeout) =>
+  new Promise((resolve) => {
+    const pendingImages = images.filter((img) => img && !img.complete);
+
+    if (pendingImages.length === 0) {
+      resolve();
+      return;
+    }
+
+    const imagePromises = pendingImages.map(
+      (img) =>
+        new Promise((resolveImage) => {
+          img.addEventListener('load', resolveImage, { once: true });
+          img.addEventListener('error', resolveImage, { once: true });
+
+          if (img.complete) {
+            resolveImage();
+          }
+        }),
+    );
+    const timeoutPromise = new Promise((resolveTimeout) => {
+      setTimeout(resolveTimeout, timeout);
+    });
+
+    Promise.race([Promise.all(imagePromises), timeoutPromise]).then(resolve);
+  });
 
 const getVisualOrder = (items) =>
   items
@@ -92,7 +121,7 @@ const loadShotsThrough = (targetIndex) => {
 const updateLightbox = (index) => {
   const shot = shots[index];
   const img = shot.querySelector('img');
-  const source = img.dataset.src || img.src;
+  const source = img.dataset.fullSrc || img.dataset.src || img.src;
 
   lightboxImg.src = source;
   lightboxImg.alt = img.alt || '';
@@ -123,19 +152,52 @@ const showPrev = () => {
   updateLightbox(prevIndex);
 };
 
+const getShotImages = (startIndex, endIndex) =>
+  shots.slice(startIndex, endIndex + 1).map((shot) => shot.querySelector('img'));
+
+const loadNextBackgroundBatch = () => {
+  const startIndex = loadedUntilIndex + 1;
+
+  if (startIndex >= shots.length) {
+    return;
+  }
+
+  const endIndex = Math.min(startIndex + backgroundLoadBatchCount - 1, shots.length - 1);
+  loadShotsThrough(endIndex);
+
+  waitForImages(getShotImages(startIndex, endIndex), 2500).then(() => {
+    setTimeout(loadNextBackgroundBatch, 400);
+  });
+};
+
+const startBackgroundLoading = () => {
+  waitForImages(getShotImages(0, initialLoadCount - 1), 6000).then(() => {
+    setTimeout(loadNextBackgroundBatch, 400);
+  });
+};
+
 shots.forEach((shot, index) => {
   const trigger = shot.querySelector('.shot-trigger');
   const img = shot.querySelector('img');
   const isInitialShot = index < initialLoadCount;
+  const isPriorityShot = index < initialPriorityCount;
 
   shot.dataset.galleryIndex = String(index);
   trigger.addEventListener('click', () => openLightbox(index));
-  img.fetchPriority = isInitialShot ? 'high' : 'low';
+  img.fetchPriority = isPriorityShot ? 'high' : 'low';
   img.loading = isInitialShot ? 'eager' : 'lazy';
   img.decoding = 'async';
 });
 
-loadShotsThrough(initialLoadCount - 1);
+loadShotsThrough(initialPriorityCount - 1);
+
+waitForImages(
+  shots.slice(0, initialPriorityCount).map((shot) => shot.querySelector('img')),
+  1200,
+).then(() => {
+  loadShotsThrough(initialLoadCount - 1);
+  startBackgroundLoading();
+});
 
 if ('IntersectionObserver' in window) {
   observer = new IntersectionObserver(
