@@ -124,6 +124,7 @@ main {
   position: relative;
   break-inside: avoid;
   margin-bottom: 22px;
+  aspect-ratio: var(--shot-ratio);
   border-radius: 0;
   overflow: hidden;
   background: transparent;
@@ -137,6 +138,7 @@ main {
 .shot-trigger {
   border: none;
   background: none;
+  display: block;
   padding: 0;
   cursor: pointer;
   width: 100%;
@@ -145,6 +147,7 @@ main {
 .shot img {
   width: 100%;
   height: auto;
+  aspect-ratio: var(--shot-ratio);
 }
 
 figcaption {

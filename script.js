@@ -5,7 +5,8 @@ const closeBtn = lightbox.querySelector('.lightbox-close');
 const prevBtn = lightbox.querySelector('.lightbox-nav.prev');
 const nextBtn = lightbox.querySelector('.lightbox-nav.next');
 
-const preloadCount = 6;
+const initialLoadCount = 12;
+const loadBatchCount = 12;
 const preloadMargin = '600px';
 
 const shuffle = (array) => {
@@ -17,6 +18,10 @@ const shuffle = (array) => {
 };
 
 const loadImage = (img) => {
+  if (!img) {
+    return;
+  }
+
   const source = img.dataset.src;
   if (!source || img.dataset.loaded === 'true') {
     return;
@@ -26,61 +31,63 @@ const loadImage = (img) => {
   img.dataset.loaded = 'true';
 };
 
+const loadShot = (shot) => {
+  loadImage(shot.querySelector('img'));
+};
+
+const getVisualOrder = (items) =>
+  items
+    .map((shot, fallbackIndex) => {
+      const rect = shot.getBoundingClientRect();
+
+      return {
+        shot,
+        fallbackIndex,
+        top: rect.top + window.scrollY,
+        left: rect.left + window.scrollX,
+      };
+    })
+    .sort((first, second) => {
+      if (first.top !== second.top) {
+        return first.top - second.top;
+      }
+
+      if (first.left !== second.left) {
+        return first.left - second.left;
+      }
+
+      return first.fallbackIndex - second.fallbackIndex;
+    })
+    .map(({ shot }) => shot);
+
 let shots = Array.from(gallery.querySelectorAll('.shot'));
 shots = shuffle(shots);
-shots.forEach((shot) => gallery.appendChild(shot));
-
-shots.forEach((shot, index) => {
-  const trigger = shot.querySelector('.shot-trigger');
-  const img = shot.querySelector('img');
-
-  trigger.addEventListener('click', () => openLightbox(index));
-
-  if (index < preloadCount) {
-    img.fetchPriority = 'high';
-    loadImage(img);
-  } else {
-    img.fetchPriority = 'low';
-    img.decoding = 'async';
-  }
-});
-
-window.addEventListener('load', () => {
-  shots.slice(0, preloadCount).forEach((shot) => {
-    const img = shot.querySelector('img');
-    loadImage(img);
-  });
-});
-
-if ('IntersectionObserver' in window) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) {
-          continue;
-        }
-
-        loadImage(entry.target);
-        observer.unobserve(entry.target);
-      }
-    },
-    {
-      rootMargin: preloadMargin,
-    },
-  );
-
-  shots.slice(preloadCount).forEach((shot) => {
-    const img = shot.querySelector('img');
-    observer.observe(img);
-  });
-} else {
-  shots.slice(preloadCount).forEach((shot) => {
-    const img = shot.querySelector('img');
-    loadImage(img);
-  });
-}
+const randomizedShots = document.createDocumentFragment();
+shots.forEach((shot) => randomizedShots.appendChild(shot));
+gallery.appendChild(randomizedShots);
+shots = getVisualOrder(shots);
 
 let currentIndex = 0;
+let loadedUntilIndex = -1;
+let observer;
+
+const loadShotsThrough = (targetIndex) => {
+  const nextLoadedUntilIndex = Math.min(targetIndex, shots.length - 1);
+
+  if (nextLoadedUntilIndex <= loadedUntilIndex) {
+    return;
+  }
+
+  for (let index = loadedUntilIndex + 1; index <= nextLoadedUntilIndex; index += 1) {
+    loadShot(shots[index]);
+
+    if (observer) {
+      observer.unobserve(shots[index]);
+    }
+  }
+
+  loadedUntilIndex = nextLoadedUntilIndex;
+};
 
 const updateLightbox = (index) => {
   const shot = shots[index];
@@ -115,6 +122,55 @@ const showPrev = () => {
   const prevIndex = (currentIndex - 1 + shots.length) % shots.length;
   updateLightbox(prevIndex);
 };
+
+shots.forEach((shot, index) => {
+  const trigger = shot.querySelector('.shot-trigger');
+  const img = shot.querySelector('img');
+  const isInitialShot = index < initialLoadCount;
+
+  shot.dataset.galleryIndex = String(index);
+  trigger.addEventListener('click', () => openLightbox(index));
+  img.fetchPriority = isInitialShot ? 'high' : 'low';
+  img.loading = isInitialShot ? 'eager' : 'lazy';
+  img.decoding = 'async';
+});
+
+loadShotsThrough(initialLoadCount - 1);
+
+if ('IntersectionObserver' in window) {
+  observer = new IntersectionObserver(
+    (entries) => {
+      let farthestVisibleIndex = -1;
+
+      for (const entry of entries) {
+        if (!entry.isIntersecting) {
+          continue;
+        }
+
+        const index = Number(entry.target.dataset.galleryIndex);
+
+        if (Number.isFinite(index)) {
+          farthestVisibleIndex = Math.max(farthestVisibleIndex, index);
+        }
+      }
+
+      if (farthestVisibleIndex === -1) {
+        return;
+      }
+
+      loadShotsThrough(farthestVisibleIndex + loadBatchCount - 1);
+    },
+    {
+      rootMargin: preloadMargin,
+    },
+  );
+
+  shots.slice(initialLoadCount).forEach((shot) => {
+    observer.observe(shot);
+  });
+} else {
+  loadShotsThrough(shots.length - 1);
+}
 
 closeBtn.addEventListener('click', closeLightbox);
 nextBtn.addEventListener('click', showNext);

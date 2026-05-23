@@ -89,7 +89,7 @@ const figures = manifest
     const { width, height } = getImageDimensions(webSrc);
 
     return [
-      `${figureIndent}<figure class="shot">`,
+      `${figureIndent}<figure class="shot" style="--shot-ratio: ${width} / ${height}">`,
       `${innerIndent}<button class="shot-trigger" aria-label="Open photo">`,
       `${innerIndent}  <img src="${placeholderSrc}" data-src="${escapeHtml(webSrc)}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" decoding="async" />`,
       `${innerIndent}</button>`,
