@@ -110,7 +110,7 @@ const figures = manifest
 
     return [
       `${figureIndent}<figure class="shot" style="--shot-ratio: ${width} / ${height}">`,
-      `${innerIndent}<button class="shot-trigger" aria-label="Open photo">`,
+      `${innerIndent}<button class="shot-trigger" type="button" aria-label="Open photo">`,
       `${innerIndent}  <img src="${placeholderSrc}" data-src="${escapeHtml(thumbnailSrc)}" data-full-src="${escapeHtml(fullSrc)}" width="${width}" height="${height}" alt="${escapeHtml(alt)}" decoding="async" />`,
       `${innerIndent}</button>`,
       `${figureIndent}</figure>`,

@@ -1,0 +1,14 @@
+/photos-web/*
+  Cache-Control: public, max-age=86400, s-maxage=31536000, stale-while-revalidate=86400
+
+/photos-thumbs/*
+  Cache-Control: public, max-age=86400, s-maxage=31536000, stale-while-revalidate=86400
+
+/*.html
+  Cache-Control: public, max-age=300
+
+/styles.css
+  Cache-Control: public, max-age=300
+
+/script.js
+  Cache-Control: public, max-age=300

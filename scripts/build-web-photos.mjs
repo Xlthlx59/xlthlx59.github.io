@@ -65,6 +65,30 @@ const toOutputPaths = (src) => {
 const counts = new Map(outputs.map((output) => [output.label, { generated: 0, skipped: 0 }]));
 const scriptMtimeMs = statSync(scriptPath).mtimeMs;
 
+const getImageDimensions = (imagePath) => {
+  const result = spawnSync(
+    'sips',
+    ['-g', 'pixelWidth', '-g', 'pixelHeight', imagePath],
+    { encoding: 'utf8' },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || `Failed to read dimensions for ${imagePath}`);
+  }
+
+  const widthMatch = result.stdout.match(/pixelWidth:\s+(\d+)/);
+  const heightMatch = result.stdout.match(/pixelHeight:\s+(\d+)/);
+
+  if (!widthMatch || !heightMatch) {
+    throw new Error(`Could not parse image dimensions for ${imagePath}`);
+  }
+
+  return {
+    width: Number(widthMatch[1]),
+    height: Number(heightMatch[1]),
+  };
+};
+
 for (const [index, entry] of manifest.entries()) {
   const src = getPhotoSrc(entry, index);
   const { sourcePath, outputPaths } = toOutputPaths(src);
@@ -73,6 +97,8 @@ for (const [index, entry] of manifest.entries()) {
     throw new Error(`Photo not found: ${src}`);
   }
 
+  const sourceDimensions = getImageDimensions(sourcePath);
+  const sourceMaxDimension = Math.max(sourceDimensions.width, sourceDimensions.height);
   const inputMtimeMs = Math.max(statSync(sourcePath).mtimeMs, scriptMtimeMs);
 
   for (const { label, outputPath, maxDimension, jpegQuality } of outputPaths) {
@@ -87,6 +113,7 @@ for (const [index, entry] of manifest.entries()) {
 
     await mkdir(path.dirname(outputPath), { recursive: true });
 
+    const targetMaxDimension = Math.min(maxDimension, sourceMaxDimension);
     const result = spawnSync(
       'sips',
       [
@@ -97,7 +124,7 @@ for (const [index, entry] of manifest.entries()) {
         'formatOptions',
         String(jpegQuality),
         '-Z',
-        String(maxDimension),
+        String(targetMaxDimension),
         sourcePath,
         '--out',
         outputPath,
